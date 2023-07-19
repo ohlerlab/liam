@@ -5,4 +5,4 @@
 import setuptools
 
 if __name__ == "__main__":
-    setuptools.setup(name="liam_NeurIPS2021_challenge_reproducibility")
+    setuptools.setup(name="liam")

@@ -2,7 +2,7 @@
 API
 ===
 
-.. currentmodule:: liam_NeurIPS2021_challenge_reproducibility
+.. currentmodule:: liam
 
 .. note:: External functions can be imported from other packages like `scvi-tools` and be displayed on your docs website. As an example, `setup_anndata` here is directly from `scvi-tools`.
 

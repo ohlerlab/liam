@@ -134,10 +134,11 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Liam (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities) - model for vertical (derives a joint
     low-dimensional embedding informed by both modalities) and horizontal (batch integration) integration of multimodal
-    scRNA-seq and scATAC-seq data from the same single cell.
+    scRNA-seq and scATAC-seq data from the same single cell. It can also integrate paired with unimodal data sets
+    (mosaic integration)
 
     Can be run as a conditional VAE (CVAE, :attr:`conditional_training=True`), or a
-    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`) - under development,
+    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`),
     and without batch correction (set :attr:`adversarial_training=False` & :attr:`conditional_training=False` (default)).
 
     Employs a negative multionomial loss for the scATAC-seq reconstruction introduced by [Kopp2021]_.
@@ -145,7 +146,7 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~liam_NeurIPS2021_challenge_reproducibility.Liam.setup_anndata`.
+        AnnData object that has been registered via :func:`~liam.Liam.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -175,12 +176,12 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     no_cond_decoder
         If `True` no batch labels are fed to the decoder. Default: `False`, for development purposes only.
     **model_kwargs
-        Keyword args for :class:`~liam_NeurIPS2021_challenge_reproducibility.Liam`
+        Keyword args for :class:`~liam.Liam`
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> liam_NeurIPS2021_challenge_reproducibility.Liam.setup_anndata(adata, batch_key="batch", chrom_acc_obsm_key="Peaks")
-    >>> vae = liam_NeurIPS2021_challenge_reproducibility.Liam(adata)
+    >>> liam.Liam.setup_anndata(adata, batch_key="batch", chrom_acc_obsm_key="Peaks")
+    >>> vae = liam.Liam(adata)
     >>> vae.train()
     >>> adata.obsm["X_liam"] = vae.get_latent_representation()
     """
@@ -523,7 +524,7 @@ def _init_library_size_liam(
     Parameters
     ----------
     adata
-        AnnData object setup with `liam_NeurIPS2021_challenge_reproducibility`.
+        AnnData object setup with `liam`.
     n_batch
         Number of batches.
     Returns
@@ -563,17 +564,18 @@ def _init_library_size_liam(
 class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Liam_ADT (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities - **a**\ ntibody-**d**\ erived
-    **t**\ ag) - model for vertical (derives a joint low-dimensional embedding informed by both modalities) and horizontal
-    (batch integration) integration of multimodal scRNA-seq and ADT data from the same single cell.
+    **t**\ ag) - model for vertical (derives a joint low-dimensional embedding informed by both modalities) and
+    horizontal (batch integration) integration of multimodal scRNA-seq and ADT data from the same single cell. It can
+    also integrate paired with unimodal data sets (mosaic integration)
 
     Can be run as a conditional VAE (CVAE, :attr:`conditional_training=True`), or a
-    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`) - under development,
+    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`),
     and without batch correction (set :attr:`adversarial_training=False` & :attr:`conditional_training=False` (default)).
 
     Parameters
     ----------
     adata
-        AnnData object that has been registered via :func:`~liam_NeurIPS2021_challenge_reproducibility.Liam.setup_anndata`.
+        AnnData object that has been registered via :func:`~liam.Liam.setup_anndata`.
     n_hidden
         Number of nodes per hidden layer.
     n_latent
@@ -602,12 +604,12 @@ class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     no_cond_decoder
         If `True` no batch labels are fed to the decoder. Default: `False`, for development purposes only.
     **model_kwargs
-        Keyword args for :class:`~liam_NeurIPS2021_challenge_reproducibility.Liam`
+        Keyword args for :class:`~liam.Liam`
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> liam_NeurIPS2021_challenge_reproducibility.Liam_ADT.setup_anndata(adata, batch_key="batch", ADT_obsm_key="ADT")
-    >>> vae = liam_NeurIPS2021_challenge_reproducibility.Liam_ADT(adata)
+    >>> liam.Liam_ADT.setup_anndata(adata, batch_key="batch", ADT_obsm_key="ADT")
+    >>> vae = liam.Liam_ADT(adata)
     >>> vae.train()
     >>> adata.obsm["X_liam_ADT"] = vae.get_latent_representation()
     """

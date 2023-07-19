@@ -1,5 +1,5 @@
 from scvi.data import synthetic_iid
-from liam_NeurIPS2021_challenge_reproducibility import Liam, MyPyroModel
+from liam import Liam, MyPyroModel
 import pyro
 
 

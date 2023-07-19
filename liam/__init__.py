@@ -1,4 +1,4 @@
-"""liam_NeurIPS2021_challenge_reproducibility."""
+"""liam."""
 """
 This software is distributed under the BSD 3-Clause License included below. A copy of the license can be found in the
 LICENSE file distributed with this program.
@@ -83,7 +83,7 @@ try:
 except ModuleNotFoundError:
     import importlib_metadata
 
-package_name = "liam_NeurIPS2021_challenge_reproducibility"
+package_name = "liam"
 __version__ = importlib_metadata.version(package_name)
 
 logger = logging.getLogger(__name__)
