@@ -1,4 +1,4 @@
-name: liam_challenge_reproducibility_env
+name: liam_env
 channels:
   - pytorch
   - bioconda
@@ -193,4 +193,3 @@ dependencies:
     - xlrd==1.2.0
     - yarl==1.7.2
     - zipp==3.6.0
-prefix: /home/prauten/miniconda3/envs/liam_challenge_reproducibility_env
