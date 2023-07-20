@@ -4,49 +4,28 @@ Installation
 Prerequisites
 ~~~~~~~~~~~~~~
 
-my_package can be installed via PyPI.
+You can currently install liam with Conda.
 
 conda prerequisites
 ###################
 
-1. Install Conda. We typically use the Miniconda_ Python distribution. Use Python version >=3.7.
+1. Install Conda. We typically use the Miniconda_ Python distribution. Use Python version >=3.8.
 
-2. Create a new conda environment::
-
-    conda create -n scvi-env python=3.7
-
-3. Activate your environment::
-
-    source activate scvi-env
-
-pip prerequisites:
-##################
-
-1. Install Python_, we prefer the `pyenv <https://github.com/pyenv/pyenv/>`_ version management system, along with `pyenv-virtualenv <https://github.com/pyenv/pyenv-virtualenv/>`_.
-
-2. Install PyTorch_. If you have an Nvidia GPU, be sure to install a version of PyTorch that supports it -- scvi-tools runs much faster with a discrete GPU.
-
-.. _Miniconda: https://conda.io/miniconda.html
-.. _Python: https://www.python.org/downloads/
-.. _PyTorch: http://pytorch.org
-
-my_package installation
+liam installation
 ~~~~~~~~~~~~~~~~~~~~~~~
+# create an anaconda environment from the provided yml file
 
-Install my_package in one of the following ways:
+$ conda env create -f liam_dependencies.yml
 
-Through **pip**::
 
-    pip install <my_package>
+# activate the created environment
 
-Through pip with packages to run notebooks. This installs scanpy, etc.::
+$ conda activate liam_env
 
-    pip install <my_package>[tutorials]
 
-Nightly version - clone this repo and run::
+# install liam
 
-    pip install .
+$pip install https://github.com/ohlerlab/liam/archive/refs/tags/v1.0.0.zip
 
-For development - clone this repo and run::
 
-    pip install -e .[dev,docs]
+Liam was tested and developed in Python 3.8 on a Linux system running CentOS 7 using a Tesla-T4 graphic or Tesla-V100-SXM2-32GB graphic card with CUDA 11.3.
