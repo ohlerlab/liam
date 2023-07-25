@@ -21,7 +21,7 @@ conda env create -f liam_dependencies.yml
 conda activate liam_env
 
 # install liam  
-pip install https://github.com/ohlerlab/liam/archive/refs/tags/v1.0.0.zip
+pip install https://github.com/ohlerlab/liam/archive/refs/tags/v0.1.0.zip
 ```
 Liam was tested and developed in Python 3.8 on a Linux system running CentOS 7 using a Tesla-T4 graphic or Tesla-V100-SXM2-32GB graphic card with CUDA 11.3.
 
