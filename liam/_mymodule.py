@@ -684,24 +684,21 @@ class LiamVAE(BaseModuleClass):
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
-        # For kl divergence to work, the empirical mean and variance can't be 0
-        # as we mask the respective loss later we set this to the smallest possible positive value here
-        # https://github.com/pytorch/pytorch/issues/74459
-        eps = torch.finfo(local_l_mean.dtype).eps
-
-        # For gene expression (modality 1)
-        local_l_mean = local_l_mean.clamp(min=eps)
-        local_l_var = local_l_var.clamp(min=eps)
-
-        # For chromatin accessibility (modality 2)
-        local_d_mean = local_d_mean.clamp(min=eps)
-        local_d_var = local_d_var.clamp(min=eps)
 
         if self.atac_only:
             kl_divergence_l = torch.zeros(batch_index.flatten().shape).to(
                 kl_divergence_z.device
             )
         else:
+            # For kl divergence to work, the empirical mean and variance can't be 0
+            # as we mask the respective loss later we set this to the smallest possible positive value here
+            # https://github.com/pytorch/pytorch/issues/74459
+            eps = torch.finfo(local_l_mean.dtype).eps
+
+            # For gene expression (modality 1)
+            local_l_mean = local_l_mean.clamp(min=eps)
+            local_l_var = local_l_var.clamp(min=eps)
+
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
                 Normal(local_l_mean, torch.sqrt(local_l_var)),
@@ -713,6 +710,15 @@ class LiamVAE(BaseModuleClass):
             )
         else:
             if self.use_atac_libsize:
+                # For kl divergence to work, the empirical mean and variance can't be 0
+                # as we mask the respective loss later we set this to the smallest possible positive value here
+                # https://github.com/pytorch/pytorch/issues/74459
+                eps = torch.finfo(local_d_mean.dtype).eps
+
+                # For chromatin accessibility (modality 2)
+                local_d_mean = local_d_mean.clamp(min=eps)
+                local_d_var = local_d_var.clamp(min=eps)
+
                 kl_divergence_d = kl(
                     Normal(qd_m, torch.sqrt(qd_v)),
                     Normal(local_d_mean, torch.sqrt(local_d_var)),
@@ -1597,24 +1603,20 @@ class LiamVAE_ADT(BaseModuleClass):
             dim=1
         )
 
-        # For kl divergence to work, the empirical mean and variance can't be 0
-        # as we mask the respective loss later we set this to the smallest possible positive value here
-        # https://github.com/pytorch/pytorch/issues/74459
-        eps = torch.finfo(local_l_mean.dtype).eps
-
-        # For gene expression (modality 1)
-        local_l_mean = local_l_mean.clamp(min=eps)
-        local_l_var = local_l_var.clamp(min=eps)
-
-        # For adt accessibility (modality 2)
-        local_d_mean = local_d_mean.clamp(min=eps)
-        local_d_var = local_d_var.clamp(min=eps)
-
         if self.ADT_only:
             kl_divergence_l = torch.zeros(batch_index.flatten().shape).to(
                 kl_divergence_z.device
             )
         else:
+            # For kl divergence to work, the empirical mean and variance can't be 0
+            # as we mask the respective loss later we set this to the smallest possible positive value here
+            # https://github.com/pytorch/pytorch/issues/74459
+            eps = torch.finfo(local_l_mean.dtype).eps
+
+            # For gene expression (modality 1)
+            local_l_mean = local_l_mean.clamp(min=eps)
+            local_l_var = local_l_var.clamp(min=eps)
+
             kl_divergence_l = kl(
                 Normal(ql_m, torch.sqrt(ql_v)),
                 Normal(local_l_mean, torch.sqrt(local_l_var)),
@@ -1625,6 +1627,15 @@ class LiamVAE_ADT(BaseModuleClass):
                 kl_divergence_l.device
             )
         else:
+            # For kl divergence to work, the empirical mean and variance can't be 0
+            # as we mask the respective loss later we set this to the smallest possible positive value here
+            # https://github.com/pytorch/pytorch/issues/74459
+            eps = torch.finfo(local_d_mean.dtype).eps
+
+            # For adt accessibility (modality 2)
+            local_d_mean = local_d_mean.clamp(min=eps)
+            local_d_var = local_d_var.clamp(min=eps)
+
             kl_divergence_d = kl(
                     Normal(qd_m, torch.sqrt(qd_v)),
                     Normal(local_d_mean, torch.sqrt(local_d_var)),
