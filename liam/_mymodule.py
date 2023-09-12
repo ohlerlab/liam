@@ -678,8 +678,9 @@ class LiamVAE(BaseModuleClass):
         scale = torch.ones_like(qz_v)
 
         # Create mask that masks modalities missing in any given cell
-        mask_rna = x.sum(axis=1) > 0
-        mask_atac = y.sum(axis=1) > 0
+        if (not rna_only) & (not atac_only):
+            mask_rna = x.sum(axis=1) > 0
+            mask_atac = y.sum(axis=1) > 0
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
@@ -740,8 +741,10 @@ class LiamVAE(BaseModuleClass):
             reconst_loss_peaks = -self.negative_multinomial_likelihood(y, logits, r)
         kl_local_for_warmup = kl_divergence_z
         # use mask to set contribution of missing modalities to this loss to 0
-        kl_local_no_warmup = kl_divergence_l * mask_rna + kl_divergence_d * mask_atac
-
+        if (not rna_only) & (not atac_only):
+            kl_local_no_warmup = kl_divergence_l * mask_rna + kl_divergence_d * mask_atac
+        else:
+            kl_local_no_warmup = kl_divergence_l + kl_divergence_d
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
         if self.adversarial_training:
@@ -754,9 +757,15 @@ class LiamVAE(BaseModuleClass):
             )
 
         # use mask to set contribution of missing modalities to respective losses to 0
-        loss = torch.mean(
-            reconst_loss * mask_rna + reconst_loss_peaks * mask_atac + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
-        )
+        if (not rna_only) & (not atac_only):
+            loss = torch.mean(
+                reconst_loss * mask_rna + reconst_loss_peaks * mask_atac + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
+            )
+        else:
+            loss = torch.mean(
+                reconst_loss + reconst_loss_peaks + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
+            )
+
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l,
@@ -1581,8 +1590,9 @@ class LiamVAE_ADT(BaseModuleClass):
         scale = torch.ones_like(qz_v)
 
         # Create mask that masks modalities missing in any given cell
-        mask_rna = x.sum(axis=1) > 0
-        mask_adt = y.sum(axis=1) > 0
+        if (not rna_only) & (not adt_only):
+            mask_rna = x.sum(axis=1) > 0
+            mask_adt = y.sum(axis=1) > 0
         kl_divergence_z = kl(Normal(qz_m, torch.sqrt(qz_v)), Normal(mean, scale)).sum(
             dim=1
         )
@@ -1642,7 +1652,10 @@ class LiamVAE_ADT(BaseModuleClass):
 
         kl_local_for_warmup = kl_divergence_z
         # use mask to set contribution of missing modalities to this loss to 0
-        kl_local_no_warmup = kl_divergence_l * mask_rna + kl_divergence_d * mask_adt
+        if (not rna_only) & (not adt_only):
+            kl_local_no_warmup = kl_divergence_l * mask_rna + kl_divergence_d * mask_adt
+        else:
+            kl_local_no_warmup = kl_divergence_l + kl_divergence_d
 
         weighted_kl_local = kl_weight * kl_local_for_warmup + kl_local_no_warmup
 
@@ -1656,9 +1669,12 @@ class LiamVAE_ADT(BaseModuleClass):
             )
 
         # use mask to set contribution of missing modalities to respective losses to 0
-        loss = torch.mean(
-            reconst_loss * mask_rna + reconst_loss_ADT * mask_adt + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
-        )
+        if (not rna_only) & (not adt_only):
+            loss = torch.mean(
+                reconst_loss * mask_rna + reconst_loss_ADT * mask_adt + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
+            )
+        else:
+            reconst_loss + reconst_loss_ADT + weighted_kl_local + self.factor_adversarial_loss * adversarial_loss
 
         kl_local = dict(
             kl_divergence_l=kl_divergence_l,
