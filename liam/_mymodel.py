@@ -132,16 +132,21 @@ logger = logging.getLogger(__name__)
 
 class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
-    Liam (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities) - model for vertical (derives a joint
-    low-dimensional embedding informed by both modalities) and horizontal (batch integration) integration of multimodal
-    scRNA-seq and scATAC-seq data from the same single cell. It can also integrate paired with unimodal data sets
-    (mosaic integration)
+    Liam (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities) is a model for integrating multimodal
+    scRNA-seq and scATAC-seq data from the same single cell. It simultaneously performs vertical (deriving a joint
+    low-dimensional embedding informed by both modalities) and horizontal integration (batch integration).
+    Liam can also integrate paired with unimodal datasets (mosaic integration).
 
-    Can be run as a conditional VAE (CVAE, :attr:`conditional_training=True`), or a
-    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`),
-    and without batch correction (set :attr:`adversarial_training=False` & :attr:`conditional_training=False` (default)).
+    By default, liam utilizes a tunable batch adversarial training strategy known as batch adversarial VAE (BAVAE).
+    You can enable this with the parameter :attr:`adversarial_training=True` (default setting).
 
-    Employs a negative multionomial loss for the scATAC-seq reconstruction introduced by [Kopp2021]_.
+    The adversarial training strategy is tunable via :attr:`factor_adversarial_loss=1.0` (default).
+
+    Liam can also be run as a conditional VAE (CVAE) by setting :attr:`conditional_training=True` and disabling
+    adversarial training (:attr:`adversarial_training=False`). Alternatively, liam can be run without batch correction
+    by setting both :attr:`adversarial_training=False` and :attr:`conditional_training=False`.
+
+    For scATAC-seq reconstruction, liam employs a negative multinomial loss as introduced by [Kopp2021]_.
 
     Parameters
     ----------
@@ -190,8 +195,8 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData,
         n_hidden: int = 128,
-        n_latent: int = 10,
-        adversarial_training: bool = False,
+        n_latent: int = 20,
+        adversarial_training: bool = True,
         conditional_training: bool = False,
         use_atac_libsize: bool = True,
         dispersion_gex: Literal["gene", "gene-batch"] = "gene-batch",
@@ -414,12 +419,12 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 0.9,
+        train_size: float = 0.95,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         early_stopping: bool = True,
         save_best: bool = True,
-        early_stopping_patience: int = 50,
+        early_stopping_patience: int = 10,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
@@ -564,13 +569,18 @@ def _init_library_size_liam(
 class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Liam_ADT (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities - **a**\ ntibody-**d**\ erived
-    **t**\ ag) - model for vertical (derives a joint low-dimensional embedding informed by both modalities) and
-    horizontal (batch integration) integration of multimodal scRNA-seq and ADT data from the same single cell. It can
-    also integrate paired with unimodal data sets (mosaic integration)
+    **t**\ ag) is a model for integrating multimodal scRNA-seq and ADT data from the same single cell. It simultaneously
+    performs vertical (deriving a joint low-dimensional embedding informed by both modalities) and horizontal
+    integration (batch integration).  Liam can also integrate paired with unimodal datasets (mosaic integration).
 
-    Can be run as a conditional VAE (CVAE, :attr:`conditional_training=True`), or a
-    batch adversarial VAE (BAVAE, :attr:`adversarial_training=True`),
-    and without batch correction (set :attr:`adversarial_training=False` & :attr:`conditional_training=False` (default)).
+    By default, liam utilizes a tunable batch adversarial training strategy known as batch adversarial VAE (BAVAE).
+    You can enable this with the parameter :attr:`adversarial_training=True` (default setting).
+
+    The adversarial training strategy is tunable via :attr:`factor_adversarial_loss=1.0` (default).
+
+    Liam can also be run as a conditional VAE (CVAE) by setting :attr:`conditional_training=True` and disabling
+    adversarial training (:attr:`adversarial_training=False`). Alternatively, liam can be run without batch correction
+    by setting both :attr:`adversarial_training=False` and :attr:`conditional_training=False`.
 
     Parameters
     ----------
@@ -618,7 +628,7 @@ class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         adata: AnnData,
         n_hidden: int = 128,
-        n_latent: int = 10,
+        n_latent: int = 20,
         adversarial_training: bool = False,
         conditional_training: bool = False,
         dispersion_gex: Literal["gene", "gene-batch"] = "gene-batch",
@@ -820,12 +830,12 @@ class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         self,
         max_epochs: Optional[int] = None,
         use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 0.9,
+        train_size: float = 0.95,
         validation_size: Optional[float] = None,
         batch_size: int = 128,
         early_stopping: bool = True,
         save_best: bool = True,
-        early_stopping_patience: int = 50,
+        early_stopping_patience: int = 10,
         plan_kwargs: Optional[dict] = None,
         **trainer_kwargs,
     ):
