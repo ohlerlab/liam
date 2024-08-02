@@ -575,8 +575,11 @@ class LiamVAE(BaseModuleClass):
         return outputs
 
     @auto_move_data
-    def generative(self, z, library, atac_library, batch_index):
+    def generative(self, z, library, atac_library, batch_index, transform_batch=None):
         """Runs the generative model."""
+        if transform_batch is not None:
+            batch_index = torch.ones_like(batch_index) * transform_batch
+
         if self.atac_only:
             px_scale, px_r, px_rate, px_dropout = None, None, None, None
         else:

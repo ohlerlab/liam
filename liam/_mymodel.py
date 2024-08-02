@@ -112,7 +112,7 @@ from anndata import AnnData
 from scipy.sparse import csr_matrix, vstack
 from scvi import _CONSTANTS
 from scvi._compat import Literal
-from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin
+from scvi.model.base import BaseModelClass, UnsupervisedTrainingMixin, VAEMixin, RNASeqMixin
 from scvi.utils._docstrings import setup_anndata_dsp
 from scvi.data._anndata import _setup_anndata
 from scvi.data import register_tensor_from_anndata, get_from_registry
@@ -130,7 +130,7 @@ from ._trainingplans import TrainingPlanLiam
 logger = logging.getLogger(__name__)
 
 
-class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
+class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass, RNASeqMixin):
     """
     Liam (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities) is a model for integrating multimodal
     scRNA-seq and scATAC-seq data from the same single cell. It simultaneously performs vertical (deriving a joint
@@ -518,6 +518,127 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         """Not implemented."""
         return "Not implemented."
 
+    @torch.no_grad()
+    def get_latent_library_size_atac(
+            self,
+            adata: Optional[AnnData] = None,
+            indices: Optional[Sequence[int]] = None,
+            give_mean: bool = True,
+            batch_size: Optional[int] = None,
+    ) -> np.ndarray:
+        r"""
+        Returns the latent library size of the chromatin accessibility data for each cell.
+        Parameters
+        ----------
+        adata
+            AnnData object with equivalent structure to initial AnnData. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        give_mean
+            Return the mean or a sample from the posterior distribution.
+        batch_size
+            Minibatch size for data loading into model. Defaults to `scvi.settings.batch_size`.
+        """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+        adata = self._validate_anndata(adata)
+        scdl = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+        libraries = []
+        for tensors in scdl:
+            inference_inputs = self.module._get_inference_input(tensors)
+            outputs = self.module.inference(**inference_inputs)
+
+            qd_m = outputs["qd_m"]
+            qd_v = outputs["qd_v"]
+            library = outputs["atac_library"]
+            if give_mean is False:
+                library = library
+            else:
+                library = torch.distributions.LogNormal(qd_m, qd_v.sqrt()).mean
+            libraries += [library.cpu()]
+        return torch.cat(libraries).numpy()
+
+    @torch.no_grad()
+    def get_atac_dispersion(
+            self,
+    ) -> np.ndarray:
+        r"""
+        Returns the dispersion parameter r.
+        ----------
+
+        """
+        if self.is_trained_ is False:
+            raise RuntimeError("Please train the model first.")
+        # torch.clamp(
+        #             torch.nn.Softplus()(vae.module.r),
+        #             min=1e-10, max=1e5).cpu().detach().numpy()
+        return self.module.r.numpy()
+
+    @torch.no_grad()
+    def get_accessibility_estimates(
+            self,
+            adata: Optional[AnnData] = None,
+            indices: Sequence[int] = None,
+            threshold: Optional[float] = None,
+            batch_size: int = 128,
+    ) -> Union[np.ndarray, csr_matrix]:
+        """
+        Impute the full accessibility matrix.
+        Returns a matrix of accessibility probabilities for each cell and genomic region in the input
+        (for return matrix A, A[i,j] is the probability that region j is accessible in cell i).
+        Parameters
+        ----------
+        adata
+            AnnData object that has been registered with scvi. If `None`, defaults to the
+            AnnData object used to initialize the model.
+        indices
+            Indices of cells in adata to use. If `None`, all cells are used.
+        threshold
+            If provided, values below the threshold are replaced with 0 and a sparse matrix
+            is returned instead. This is recommended for very large matrices. Must be between 0 and 1.
+        batch_size
+            Minibatch size for data loading into model
+        """
+        adata = self._validate_anndata(adata)
+        post = self._make_data_loader(
+            adata=adata, indices=indices, batch_size=batch_size
+        )
+
+        if threshold is not None and (threshold < 0 or threshold > 1):
+            raise ValueError("the provided threshold must be between 0 and 1")
+
+        imputed = []
+        for tensors in post:
+            inference_outputs, generative_outputs = self.module.forward(
+                tensors=tensors,
+                compute_loss=False,
+            )
+
+            logits = generative_outputs["logits"]
+            r = generative_outputs["r"]
+
+            p = LiamVAE.softmax1p(logits).T
+            p0 = LiamVAE.softmax1p0(logits)
+
+            y_hat = p * r / (p0 + 1e-10)
+            y_hat = y_hat.T
+
+            if threshold:
+                y_hat[y_hat < threshold] = 0
+                y_hat = csr_matrix(y_hat.numpy())
+
+            imputed.append(y_hat.cpu())  # .tolist())
+            del y_hat, p, p0, logits, r, inference_outputs
+
+        if threshold:  # imputed is a list of csr_matrix objects
+            imputed = vstack(imputed, format="csr")
+        else:  # imputed is a list of tensors
+            imputed = torch.cat(imputed).numpy()
+
+        return imputed
 
 def _init_library_size_liam(
     adata: AnnData, n_batch: dict, registry_key: Literal["chromatin_accessibility", "CLR_ADT_counts"]
