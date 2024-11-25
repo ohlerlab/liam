@@ -8,7 +8,7 @@ For legacy software used for analyses presented in [[1]](#1), see: https://githu
 For analysis scripts see: https://github.com/ohlerlab/liam_manuscript_reproducibility
 
 # Installation
-You can install liam with conda [miniforge conda installer](https://github.com/conda-forge/miniforge) following the  steps listed below. We have updated the dependencies to be compliant with free use [(cf. articel on anaconda licensing changes)](https://www.datacamp.com/blog/navigating-anaconda-licensing).
+You can install liam with conda [(miniforge conda installer)](https://github.com/conda-forge/miniforge) following the  steps listed below. We have updated the dependencies to be compliant with free use [(cf. articel on anaconda licensing changes)](https://www.datacamp.com/blog/navigating-anaconda-licensing).
 
 ```
 # create an conda environment from the provided yml file
