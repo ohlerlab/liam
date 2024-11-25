@@ -1,8 +1,5 @@
 # Liam
-
-Liam (**l**everaging **i**nformation **a**cross **m**odalities) is an adversarial variational autoencoder-based model for the simultaneous
-vertical (derives a joint low-dimensional embedding informed by both modalities) and horizontal (batch) integration of paired multimodal
-scRNA-seq and scATAC-seq data, and scRNA-seq and ADT data (CITE-seq; Liam_ADT). It can also integrate paired with unimodal data sets (mosaic integration).
+Liam (**l**everaging **i**nformation **a**cross **m**odalities) is an adversarial variational autoencoder-based model for the simultaneous vertical (derives a joint low-dimensional embedding informed by both modalities) and horizontal (batch) integration of paired multimodal scRNA-seq and scATAC-seq data, and scRNA-seq and ADT data (CITE-seq; Liam_ADT). It can also integrate paired with unimodal data sets (mosaic integration).
 
 If you are using liam, please cite [[1]](#1).
 
@@ -11,10 +8,10 @@ For legacy software used for analyses presented in [[1]](#1), see: https://githu
 For analysis scripts see: https://github.com/ohlerlab/liam_manuscript_reproducibility
 
 # Installation
-You can install liam with [anaconda](https://www.anaconda.com/) following the listed steps:
+You can install liam with conda [miniforge conda installer](https://github.com/conda-forge/miniforge) following the  steps listed below. We have updated the dependencies to be compliant with free use [(cf. articel on anaconda licensing changes)](https://www.datacamp.com/blog/navigating-anaconda-licensing).
 
 ```
-# create an anaconda environment from the provided yml file
+# create an conda environment from the provided yml file
 conda env create -f liam_dependencies.yml
 
 # activate the created environment
@@ -41,7 +38,7 @@ The licenses of the third-party code are linked in the following and can be foun
 
 ## References
 <a id="1">[1]</a>
-Rautenstrauch, P. & Ohler, U. (2022) [Liam tackles complex multimodal single-cell data integration challenges](https://www.biorxiv.org/content/10.1101/2022.12.21.521399v1). bioRxiv DOI: 10.1101/2022.12.21.521399
+Rautenstrauch, P. & Ohler, U. (2024) [Liam tackles complex multimodal single-cell data integration challenges](https://doi.org/10.1093/nar/gkae409). Nucleic Acids Research DOI: 10.1093/nar/gkae409
 
 <a id="2">[2]</a>
 Gayoso, A. et al. (2022) A Python library for probabilistic analysis of single-cell omics data. Nature Biotechnology DOI: 10.1038/s41587-021-01206-w
