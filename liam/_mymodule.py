@@ -339,7 +339,9 @@ class LiamVAE(BaseModuleClass):
             )
 
         self.factor_adversarial_loss = factor_adversarial_loss
-        logger.info("Adversarial loss * {}.".format(factor_adversarial_loss))
+
+        if adversarial_training:
+            logger.info("Adversarial loss * {}.".format(factor_adversarial_loss))
 
         # For development purpose
         self.no_cond_decoder = no_cond_decoder
@@ -1269,7 +1271,9 @@ class LiamVAE_ADT(BaseModuleClass):
             )
 
         self.factor_adversarial_loss = factor_adversarial_loss
-        logger.info("Adversarial loss * {}.".format(factor_adversarial_loss))
+
+        if adversarial_training:
+            logger.info("Adversarial loss * {}.".format(factor_adversarial_loss))
 
         # For development purpose
         self.no_cond_decoder = no_cond_decoder
