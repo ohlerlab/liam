@@ -74,8 +74,8 @@ import logging
 from rich.console import Console
 from rich.logging import RichHandler
 
-from ._mymodel import Liam, Liam_ADT
-from ._mymodule import LiamVAE, LiamVAE_ADT
+from ._mymodel import Liam
+from ._mymodule import LiamVAE
 # https://github.com/python-poetry/poetry/pull/2366#issuecomment-652418094
 # https://github.com/python-poetry/poetry/issues/144#issuecomment-623927302
 try:
@@ -102,4 +102,4 @@ logger.addHandler(ch)
 # this prevents double outputs
 logger.propagate = False
 
-__all__ = ["Liam", "Liam_ADT", "LiamVAE", "LiamVAE_ADT"]
+__all__ = ["Liam", "LiamVAE"]

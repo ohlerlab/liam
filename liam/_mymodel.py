@@ -123,7 +123,7 @@ from scvi.dataloaders import DataSplitter
 from scvi.train import TrainRunner
 from scvi.train._callbacks import SaveBestState
 
-from ._mymodule import LiamVAE, LiamVAE_ADT
+from ._mymodule import LiamVAE
 from ._trainingplans import TrainingPlanLiam
 
 
@@ -133,7 +133,7 @@ logger = logging.getLogger(__name__)
 class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     """
     Liam (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities) is a model for integrating multimodal
-    scRNA-seq and scATAC-seq data from the same single cell. It simultaneously performs vertical (deriving a joint
+    data from the same single cell. It simultaneously performs vertical (deriving a joint
     low-dimensional embedding informed by both modalities) and horizontal integration (batch integration).
     Liam can also integrate paired with unimodal datasets (mosaic integration).
 
@@ -146,7 +146,7 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     adversarial training (:attr:`adversarial_training=False`). Alternatively, liam can be run without batch correction
     by setting both :attr:`adversarial_training=False` and :attr:`conditional_training=False`.
 
-    For scATAC-seq reconstruction, liam employs a negative multinomial loss as introduced by [Kopp2021]_.
+    In this experimental version liam employs a negative multinomial loss as introduced by [Kopp2021]_ for both modalities.
 
     Parameters
     ----------
@@ -161,20 +161,22 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         development.
     conditional_training
         If `True` a conditional VAE model is trained.
-    use_atac_libsize
-        If `True` a neural network will estimate a sample specific latent library factor for the scATAC-seq data.
-    dispersion_gex
-        One of the following:
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-    dispersion_atac
+    use_mod1_libsize
+        If `True` a neural network will estimate a sample specific latent library factor for the mod1 data.
+    use_mod2_libsize
+        If `True` a neural network will estimate a sample specific latent library factor for the mod2 data.
+    dispersion_mod1
         One of the following:
         * ``'constant'`` - dispersion parameter is the same across all batches
         * ``'batch'`` - dispersion can differ between different batches
-    rna_only
-        If `True` only the scRNA-seq module of the model will be trained.
-    atac_only
-        If `True` only the scATAC-seq module of the model will be trained.
+    dispersion_mod2
+        One of the following:
+        * ``'constant'`` - dispersion parameter is the same across all batches
+        * ``'batch'`` - dispersion can differ between different batches
+    mod1_only
+        If `True` only the mod1 module of the model will be trained.
+    mod2_only
+        If `True` only the mod2 module of the model will be trained.
         Data still needs to be in the obsm field of the AnnData object.
     factor_adversarial_loss
         Factor with which the adversarial loss is multiplied with.
@@ -185,7 +187,7 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
     Examples
     --------
     >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> liam.Liam.setup_anndata(adata, batch_key="batch", chrom_acc_obsm_key="Peaks")
+    >>> liam.Liam.setup_anndata(adata, batch_key="batch", mod2_obsm_key="mod2_data")
     >>> vae = liam.Liam(adata)
     >>> vae.train()
     >>> adata.obsm["X_liam"] = vae.get_latent_representation()
@@ -198,11 +200,12 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         n_latent: int = 20,
         adversarial_training: bool = True,
         conditional_training: bool = False,
-        use_atac_libsize: bool = True,
-        dispersion_gex: Literal["gene", "gene-batch"] = "gene-batch",
-        dispersion_atac: Literal["constant", "batch"] = "batch",
-        rna_only: bool = False,
-        atac_only: bool = False,
+        use_mod1_libsize: bool = True,
+        use_mod2_libsize: bool = True,
+        dispersion_mod1: Literal["constant", "batch"] = "batch",
+        dispersion_mod2: Literal["constant", "batch"] = "batch",
+        mod1_only: bool = False,
+        mod2_only: bool = False,
         factor_adversarial_loss: float = 1.0,
         no_cond_decoder: bool = False,
         **model_kwargs,
@@ -218,41 +221,42 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                            "without batch correction repeat setting up your AnnData object with batch_key=None and "
                            "rerun your model.")
 
-        if atac_only and rna_only:
-            logger.error("You can choose either rna_only or atac_only, not both.")
+        if mod2_only and mod1_only:
+            logger.error("You can choose either mod1_only or mod2_only, not both.")
 
         # Setup library size factor priors
-        elif atac_only:
+        elif mod2_only:
             library_d_log_means, library_d_log_vars = _init_library_size_liam(
-                adata, n_batch, "chromatin_accessibility"
+                adata, n_batch, "mod2_counts"
             )
             library_log_means, library_log_vars = None, None
 
-        elif rna_only:
+        elif mod1_only:
             library_log_means, library_log_vars = _init_library_size(adata, n_batch)
             library_d_log_means, library_d_log_vars = None, None
 
         else:
             library_d_log_means, library_d_log_vars = _init_library_size_liam(
-                adata, n_batch, "chromatin_accessibility"
+                adata, n_batch, "mod2_counts"
             )
             library_log_means, library_log_vars = _init_library_size(adata, n_batch)
 
         self.module = LiamVAE(
-            n_genes=0 if atac_only else self.summary_stats["n_vars"],
-            n_peaks=0
-            if rna_only
-            else get_from_registry(self.adata, "chromatin_accessibility").shape[1],
+            n_mod1=0 if mod2_only else self.summary_stats["n_vars"],
+            n_mod2=0
+            if mod1_only
+            else get_from_registry(self.adata, "mod2_counts").shape[1],
             n_hidden=n_hidden,
             n_latent=n_latent,
             n_batch=self.summary_stats["n_batch"],
             adversarial_training=adversarial_training,
             conditional_training=conditional_training,
-            use_atac_libsize=use_atac_libsize,
-            dispersion_gex=dispersion_gex,
-            dispersion_atac=dispersion_atac,
-            rna_only=rna_only,
-            atac_only=atac_only,
+            use_mod1_libsize=use_mod1_libsize,
+            use_mod2_libsize=use_mod2_libsize,
+            dispersion_mod1=dispersion_mod1,
+            dispersion_mod2=dispersion_mod2,
+            mod1_only=mod1_only,
+            mod2_only=mod2_only,
             library_log_means=library_log_means,
             library_log_vars=library_log_vars,
             library_d_log_means=library_d_log_means,
@@ -262,23 +266,25 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
             **model_kwargs,
         )
         self._model_summary_string = "Liam model with the following parameters: " \
-                                     "rna_only: {}," \
-                                     "atac_only: {}, " \
+                                     "mod1_only: {}," \
+                                     "mod2_only: {}, " \
                                      "adversarial_training: {}, " \
                                      "conditional_training: {}, " \
-                                     "use_atac_libsize: {}, " \
-                                     "dispersion_gex: {}, " \
-                                     "dispersion_atac: {}, " \
+                                     "use_mod1_libsize: {}, " \
+                                     "use_mod2_libsize: {}, " \
+                                     "dispersion_mod1: {}, " \
+                                     "dispersion_mod2: {}, " \
                                      "n_hidden: {}, " \
                                      "n_latent: {}, " \
                                      "n_batch: {}, " \
-                                     "factor_adversarial_loss: {}.".format(rna_only,
-                                                            atac_only,
+                                     "factor_adversarial_loss: {}.".format(mod1_only,
+                                                            mod2_only,
                                                             adversarial_training,
                                                             conditional_training,
-                                                            use_atac_libsize,
-                                                            dispersion_gex,
-                                                            dispersion_atac,
+                                                            use_mod1_libsize,
+                                                            use_mod2_libsize,
+                                                            dispersion_mod1,
+                                                            dispersion_mod2,
                                                             n_hidden,
                                                             n_latent,
                                                             n_batch,
@@ -295,8 +301,8 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         batch_key: Optional[str] = None,
         layer: Optional[str] = None,
         copy: bool = False,
-        rna_only: bool = False,
-        chrom_acc_obsm_key: Optional[str] = None,
+        mod1_only: bool = False,
+        mod2_obsm_key: Optional[str] = None,
     ) -> Optional[AnnData]:
         """
         %(summary)s.
@@ -306,10 +312,10 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
         %(param_batch_key)s
         %(param_layer)s
         %(param_copy)s
-        rna_only:
-            If `True` the model will use only the scRNA-seq data saved in adata.X and disable the scATAC part of the model.
-        chrom_acc_obsm_key
-            Key in `adata.obsm` for chromatin accessibility data, required for all models except RNA only models.
+        mod1_only:
+            If `True` the model will use only the mod1 data saved in adata.X and disable the mod2 part of the model.
+        mod2_obsm_key
+            Key in `adata.obsm` for mod2 data, required for all models except mod1 only models.
         -------
         %(returns)s
         """
@@ -327,42 +333,42 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 copy=copy,
             )
 
-            if not rna_only and chrom_acc_obsm_key is None:
+            if not mod1_only and mod2_obsm_key is None:
                 logger.error(
-                    "You must provide a key to the chromatin accessibility data stored in adata.obsm."
+                    "You must provide a key to the mod2 data stored in adata.obsm."
                 )
 
-            if not rna_only:
-                # Setup of AnnData object for chromatin accessibility specific features
+            if not mod1_only:
+                # Setup of AnnData object for mod2 specific features
                 logger.info(
-                    "Additionally setting up variables for chromatin accessibility related variables."
+                    "Additionally setting up variables for mod2 related variables."
                 )
 
-                if chrom_acc_obsm_key not in adata.obsm.keys():
+                if mod2_obsm_key not in adata.obsm.keys():
                     raise KeyError(
-                        "Can't find {} in adata.obsm for chromatin accessibility.".format(
-                            chrom_acc_obsm_key
+                        "Can't find {} in adata.obsm for mod2.".format(
+                            mod2_obsm_key
                         )
                     )
 
-                if not _check_nonnegative_integers(adata.obsm[chrom_acc_obsm_key]):
+                if not _check_nonnegative_integers(adata.obsm[mod2_obsm_key]):
                     warnings.warn(
                         "adata.obsm[{}] does not contain count data. Are you sure this is what you want?".format(
-                            chrom_acc_obsm_key
+                            mod2_obsm_key
                         )
                     )
                 else:
                     register_tensor_from_anndata(
                         adata=adata,
                         adata_attr_name="obsm",
-                        adata_key_name=chrom_acc_obsm_key,
-                        registry_key="chromatin_accessibility",
+                        adata_key_name=mod2_obsm_key,
+                        registry_key="mod2_counts",
                         is_categorical=False,
                     )
 
                 logger.info(
-                    "Additionally, successfully registered {} chromatin features".format(
-                        get_from_registry(adata, "chromatin_accessibility").shape[1]
+                    "Additionally, successfully registered {} mod2 features".format(
+                        get_from_registry(adata, "mod2_counts").shape[1]
                     )
                 )
 
@@ -376,42 +382,42 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
                 copy=copy,
             )
 
-            if not rna_only and chrom_acc_obsm_key is None:
+            if not mod1_only and mod2_obsm_key is None:
                 logger.error(
-                    "You must provide a key to the chromatin accessibility data stored in adata.obsm."
+                    "You must provide a key to the mod2 data stored in adata.obsm."
                 )
 
-            if not rna_only:
-                # Setup of AnnData object for chromatin accessibility specific features
+            if not mod1_only:
+                # Setup of AnnData object for mod2 specific features
                 logger.info(
-                    "Additionally setting up variables for chromatin accessibility related variables."
+                    "Additionally setting up variables for mod2 related variables."
                 )
 
-                if chrom_acc_obsm_key not in adata.obsm.keys():
+                if mod2_obsm_key not in adata.obsm.keys():
                     raise KeyError(
-                        "Can't find {} in adata.obsm for chromatin accessibility.".format(
-                            chrom_acc_obsm_key
+                        "Can't find {} in adata.obsm for mod2.".format(
+                            mod2_obsm_key
                         )
                     )
 
-                if not _check_nonnegative_integers(adata.obsm[chrom_acc_obsm_key]):
+                if not _check_nonnegative_integers(adata.obsm[mod2_obsm_key]):
                     warnings.warn(
                         "adata.obsm[{}] does not contain count data. Are you sure this is what you want?".format(
-                            chrom_acc_obsm_key
+                            mod2_obsm_key
                         )
                     )
                 else:
                     register_tensor_from_anndata(
                         adata=adata,
                         adata_attr_name="obsm",
-                        adata_key_name=chrom_acc_obsm_key,
-                        registry_key="chromatin_accessibility",
+                        adata_key_name=mod2_obsm_key,
+                        registry_key="mod2_counts",
                         is_categorical=False,
                     )
 
                 logger.info(
-                    "Additionally, successfully registered {} chromatin features".format(
-                        get_from_registry(adata, "chromatin_accessibility").shape[1]
+                    "Additionally, successfully registered {} mod2 features".format(
+                        get_from_registry(adata, "mod2_counts").shape[1]
                     )
                 )
 
@@ -520,10 +526,10 @@ class Liam(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
 
 
 def _init_library_size_liam(
-    adata: AnnData, n_batch: dict, registry_key: Literal["chromatin_accessibility", "CLR_ADT_counts"]
+    adata: AnnData, n_batch: dict, registry_key: Literal["mod2_counts"]
 ) -> Tuple[np.ndarray, np.ndarray]:
     """
-    Modifies scvi.model._utils._init_library_size to return library size of the scATAC-seq or ADT data.
+    Modifies scvi.model._utils._init_library_size to return library size of the mod2 data.
 
     Computes and returns library size.
     Parameters
@@ -565,366 +571,3 @@ def _init_library_size_liam(
         library_log_vars[i_batch] = np.var(log_counts).astype(np.float32)
 
     return library_log_means.reshape(1, -1), library_log_vars.reshape(1, -1)
-
-class Liam_ADT(VAEMixin, UnsupervisedTrainingMixin, BaseModelClass):
-    """
-    Liam_ADT (**L**\ everaging **i**\ nformation **a**\ cross **m**\ odalities - **a**\ ntibody-**d**\ erived
-    **t**\ ag) is a model for integrating multimodal scRNA-seq and ADT data from the same single cell. It simultaneously
-    performs vertical (deriving a joint low-dimensional embedding informed by both modalities) and horizontal
-    integration (batch integration).  Liam can also integrate paired with unimodal datasets (mosaic integration).
-
-    By default, liam utilizes a tunable batch adversarial training strategy known as batch adversarial VAE (BAVAE).
-    You can enable this with the parameter :attr:`adversarial_training=True` (default setting).
-
-    The adversarial training strategy is tunable via :attr:`factor_adversarial_loss=1.0` (default).
-
-    Liam can also be run as a conditional VAE (CVAE) by setting :attr:`conditional_training=True` and disabling
-    adversarial training (:attr:`adversarial_training=False`). Alternatively, liam can be run without batch correction
-    by setting both :attr:`adversarial_training=False` and :attr:`conditional_training=False`.
-
-    Parameters
-    ----------
-    adata
-        AnnData object that has been registered via :func:`~liam.Liam.setup_anndata`.
-    n_hidden
-        Number of nodes per hidden layer.
-    n_latent
-        Dimensionality of the latent space.
-    n_layers
-        Number of hidden layers used for encoder and decoder NNs.
-    adversarial_training
-        If `True` an adversarial training strategy will be employed using the batch as adversarial target - under
-        development.
-    conditional_training
-        If `True` a conditional VAE model is trained.
-    dispersion_gex
-        One of the following:
-        * ``'gene'`` - dispersion parameter of NB is constant per gene across cells
-        * ``'gene-batch'`` - dispersion can differ between different batches
-    dispersion_ADT
-        One of the following:
-        * ``'ADT'`` - dispersion parameter of NB is constant per ADT across cells
-        * ``'ADT-batch'`` - dispersion can differ between different batches
-    rna_only
-        If `True` only the scRNA-seq module of the model will be trained.
-    ADT_only
-        If `True` only the scATAC-seq module of the model will be trained. Data still needs to be in the obsm field of the AnnData object.
-    factor_adversarial_loss
-        Factor with which the adversarial loss is multiplied with.
-    no_cond_decoder
-        If `True` no batch labels are fed to the decoder. Default: `False`, for development purposes only.
-    **model_kwargs
-        Keyword args for :class:`~liam.Liam`
-    Examples
-    --------
-    >>> adata = anndata.read_h5ad(path_to_anndata)
-    >>> liam.Liam_ADT.setup_anndata(adata, batch_key="batch", ADT_obsm_key="ADT")
-    >>> vae = liam.Liam_ADT(adata)
-    >>> vae.train()
-    >>> adata.obsm["X_liam_ADT"] = vae.get_latent_representation()
-    """
-
-    def __init__(
-        self,
-        adata: AnnData,
-        n_hidden: int = 128,
-        n_latent: int = 20,
-        adversarial_training: bool = False,
-        conditional_training: bool = False,
-        dispersion_gex: Literal["gene", "gene-batch"] = "gene-batch",
-        dispersion_ADT: Literal["ADT", "ADT-batch"] = "ADT-batch",
-        rna_only: bool = False,
-        ADT_only: bool = False,
-        factor_adversarial_loss: float = 1.0,
-        no_cond_decoder: bool = False,
-        **model_kwargs,
-    ):
-        super(Liam_ADT, self).__init__(adata)
-
-        n_batch = self.summary_stats["n_batch"]
-
-        if not adversarial_training and not conditional_training and n_batch != 1:
-            logger.warning(
-                "You have disabled adversarial and conditional training but the number of registered batches "
-                "is not zero. This batch information will be used in many parts of this model. This is "
-                "option is only enabled/advisable for development purpose. If you want to train a VAE "
-                "without batch correction repeat setting up your AnnData object with batch_key=None and "
-                "rerun your model.")
-
-        if rna_only and ADT_only:
-            logger.error("You can choose either rna_only or ADT_only, not both.")
-
-        if rna_only:
-            library_log_means, library_log_vars = _init_library_size(adata, n_batch)
-            library_d_log_means, library_d_log_vars = None, None
-        elif ADT_only:
-            library_log_means, library_log_vars = None, None
-            library_d_log_means, library_d_log_vars = _init_library_size_liam(adata, n_batch, "CLR_ADT_counts")
-        else:
-            library_log_means, library_log_vars = _init_library_size(adata, n_batch)
-            library_d_log_means, library_d_log_vars = _init_library_size_liam(adata, n_batch, "CLR_ADT_counts")
-
-        self.module = LiamVAE_ADT(
-            n_genes=0 if ADT_only else self.summary_stats["n_vars"],
-            n_ADT=0
-            if rna_only
-            else get_from_registry(self.adata, "CLR_ADT_counts").shape[1],
-            n_hidden=n_hidden,
-            n_latent=n_latent,
-            n_batch=self.summary_stats["n_batch"],
-            adversarial_training=adversarial_training,
-            conditional_training=conditional_training,
-            dispersion_gex=dispersion_gex,
-            dispersion_ADT=dispersion_ADT,
-            rna_only=rna_only,
-            ADT_only=ADT_only,
-            library_log_means=library_log_means,
-            library_log_vars=library_log_vars,
-            library_d_log_means=library_d_log_means,
-            library_d_log_vars=library_d_log_vars,
-            factor_adversarial_loss=factor_adversarial_loss,
-            no_cond_decoder=no_cond_decoder,
-            **model_kwargs,
-        )
-        self._model_summary_string = "Liam_ADT model with the following parameters: " \
-                                     "rna_only: {}," \
-                                     "ADT_only: {}, " \
-                                     "adversarial_training: {}, " \
-                                     "conditional_training: {}, " \
-                                     "dispersion_gex: {}, " \
-                                     "dispersion_ADT: {}, " \
-                                     "n_hidden: {}, " \
-                                     "n_latent: {}, " \
-                                     "n_batch: {}, " \
-                                     "factor_adversarial_loss: {}.".format(rna_only,
-                                                            ADT_only,
-                                                            adversarial_training,
-                                                            conditional_training,
-                                                            dispersion_gex,
-                                                            dispersion_ADT,
-                                                            n_hidden,
-                                                            n_latent,
-                                                            n_batch,
-                                                            factor_adversarial_loss)
-        # necessary line to get params that will be used for saving/loading
-        self.init_params_ = self._get_init_params(locals())
-
-        logger.info("The model has been initialized")
-
-    @staticmethod
-    @setup_anndata_dsp.dedent
-    def setup_anndata(
-        adata: AnnData,
-        batch_key: Optional[str] = None,
-        layer: Optional[str] = None,
-        copy: bool = False,
-        rna_only: bool = False,
-        ADT_obsm_key: Optional[str] = None,
-    ) -> Optional[AnnData]:
-        """
-        %(summary)s.
-        Parameters
-        ----------
-        %(param_adata)s
-        %(param_batch_key)s
-        %(param_layer)s
-        %(param_copy)s
-        rna_only:
-            If `True` the model will use only the scRNA-seq data saved in adata.X and disable the scATAC part of the model.
-        ADT_obsm_key
-            Key in `adata.obsm` for CLR transformed ADT data, required for all models except RNA only models.
-        -------
-        %(returns)s
-        """
-
-        # Setup of AnnData object analogous to scvi for gene expression and covariates
-        logger.info(
-            "Setting up anndata object using scVI for gene expression related variables."
-        )
-
-        if copy:
-            adata = _setup_anndata(
-                adata,
-                batch_key=batch_key,
-                layer=layer,
-                copy=copy,
-            )
-
-            if not rna_only and ADT_obsm_key is None:
-                logger.error(
-                    "You must provide a key to the CLR transformed ADT counts accessibility stored in adata.obsm."
-                )
-
-            if not rna_only:
-                # Setup of AnnData object for chromatin accessibility specific features
-                logger.info(
-                    "Additionally setting up variables for chromatin accessibility related variables."
-                )
-
-                if ADT_obsm_key not in adata.obsm.keys():
-                    raise KeyError(
-                        "Can't find {} in adata.obsm for CLR transformed ADT counts.".format(
-                            ADT_obsm_key
-                        )
-                    )
-
-                else:
-                    register_tensor_from_anndata(
-                        adata=adata,
-                        adata_attr_name="obsm",
-                        adata_key_name=ADT_obsm_key,
-                        registry_key="CLR_ADT_counts",
-                        is_categorical=False,
-                    )
-
-                logger.info(
-                    "Additionally, successfully registered {} CLR transformed ADT features".format(
-                        get_from_registry(adata, "CLR_ADT_counts").shape[1]
-                    )
-                )
-
-            return adata
-
-        else:
-            _setup_anndata(
-                adata,
-                batch_key=batch_key,
-                layer=layer,
-                copy=copy,
-            )
-
-            if not rna_only and ADT_obsm_key is None:
-                logger.error(
-                    "You must provide a key to the CLR transformed ADT count data stored in adata.obsm."
-                )
-
-            if not rna_only:
-                # Setup of AnnData object for chromatin accessibility specific features
-                logger.info(
-                    "Additionally setting up variables for CLR transfomred ADT count related variables."
-                )
-
-                if ADT_obsm_key not in adata.obsm.keys():
-                    raise KeyError(
-                        "Can't find {} in adata.obsm for CLR transformed ADT counts.".format(
-                            ADT_obsm_key
-                        )
-                    )
-
-                else:
-                    register_tensor_from_anndata(
-                        adata=adata,
-                        adata_attr_name="obsm",
-                        adata_key_name=ADT_obsm_key,
-                        registry_key="CLR_ADT_counts",
-                        is_categorical=False,
-                    )
-
-                logger.info(
-                    "Additionally, successfully registered {} CLR transformed ADT features".format(
-                        get_from_registry(adata, "CLR_ADT_counts").shape[1]
-                    )
-                )
-
-    def train(
-        self,
-        max_epochs: Optional[int] = None,
-        use_gpu: Optional[Union[str, int, bool]] = None,
-        train_size: float = 0.95,
-        validation_size: Optional[float] = None,
-        batch_size: int = 128,
-        early_stopping: bool = True,
-        save_best: bool = True,
-        early_stopping_patience: int = 10,
-        plan_kwargs: Optional[dict] = None,
-        **trainer_kwargs,
-    ):
-        """
-        Modifies train method from class UnsupervisedTrainingMixin() of scvi.model.base._training_mixin.py class to use
-        custom trainingsplan TrainingPlanLiam.
-
-        Train the model.
-
-        Parameters
-        ----------
-        max_epochs
-            Number of passes through the dataset. If `None`, defaults to
-            `np.min([round((20000 / n_cells) * 400), 400])`
-        use_gpu
-            Use default GPU if available (if None or True), or index of GPU to use (if int),
-            or name of GPU (if str, e.g., `'cuda:0'`), or use CPU (if False).
-        train_size
-            Size of training set in the range [0.0, 1.0].
-        validation_size
-            Size of the test set. If `None`, defaults to 1 - `train_size`. If
-            `train_size + validation_size < 1`, the remaining cells belong to a test set.
-        batch_size
-            Minibatch size to use during training.
-        early_stopping
-            Perform early stopping. Additional arguments can be passed in `**kwargs`.
-            See :class:`~scvi.train.Trainer` for further options.
-        save_best
-            Save the best model state with respect to the validation loss (default), or use the final
-            state in the training procedure.
-        early_stopping_patience
-            How many epochs to wait for improvement before early stopping/
-        plan_kwargs
-            Keyword args for :class:`~scvi.train.TrainingPlan`. Keyword arguments passed to
-            `train()` will overwrite values present in `plan_kwargs`, when appropriate.
-        **trainer_kwargs
-            Other keyword args for :class:`~scvi.train.Trainer`.
-        """
-        print("Using Liam train() method.")
-        print("trainer_kwargs", trainer_kwargs)
-        if max_epochs is None:
-            n_cells = self.adata.n_obs
-            max_epochs = np.min([round((20000 / n_cells) * 400), 400])
-
-        plan_kwargs = plan_kwargs if isinstance(plan_kwargs, dict) else dict()
-
-        data_splitter = DataSplitter(
-            self.adata,
-            train_size=train_size,
-            validation_size=validation_size,
-            batch_size=batch_size,
-            use_gpu=use_gpu,
-        )
-
-        training_plan = TrainingPlanLiam(self.module, **plan_kwargs)
-
-        es = "early_stopping"
-        trainer_kwargs[es] = (
-            early_stopping if es not in trainer_kwargs.keys() else trainer_kwargs[es]
-        )
-
-        if save_best:
-            if "callbacks" not in trainer_kwargs.keys():
-                trainer_kwargs["callbacks"] = []
-            trainer_kwargs["callbacks"].append(SaveBestState(monitor="validation_loss"))
-
-        runner = TrainRunner(
-            self,
-            training_plan=training_plan,
-            data_splitter=data_splitter,
-            max_epochs=max_epochs,
-            use_gpu=use_gpu,
-            early_stopping_monitor="validation_loss",
-            early_stopping_patience=early_stopping_patience,
-            **trainer_kwargs,
-        )
-        return runner()
-
-    @staticmethod
-    def get_elbo():
-        """Not implemented."""
-        return "Not implemented."
-
-    @staticmethod
-    def get_marginal_ll():
-        """Not implemented."""
-        return "Not implemented."
-
-    @staticmethod
-    def get_reconstruction_error():
-        """Not implemented."""
-        return "Not implemented."

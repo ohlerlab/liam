@@ -223,7 +223,7 @@ class TrainingPlanLiam(pl.LightningModule):
             "kl_local_sum": scvi_loss.kl_local.sum().detach(),
             "kl_global": scvi_loss.kl_global.detach(),
             "n_obs": reconstruction_loss.shape[0],
-            "reconst_loss_peaks_sum": scvi_loss.reconst_loss_peaks.sum().detach(),
+            "reconst_loss_mod2_sum": scvi_loss.reconst_loss_mod2.sum().detach(),
             "adversarial_loss_sum": scvi_loss.adversarial_loss.sum().detach(),
             "kl_divergence_l_sum": scvi_loss.kl_divergence_l.sum().detach(),
             "kl_divergence_z_sum": scvi_loss.kl_divergence_z.sum().detach(),
@@ -236,7 +236,7 @@ class TrainingPlanLiam(pl.LightningModule):
             elbo,
             rec_loss,
             kl_local,
-            rec_loss_peaks,
+            rec_loss_mod2,
             adversarial_loss,
             kl_div_l,
             kl_div_z,
@@ -247,7 +247,7 @@ class TrainingPlanLiam(pl.LightningModule):
             rec_loss += tensors["reconstruction_loss_sum"]
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
-            rec_loss_peaks += tensors["reconst_loss_peaks_sum"]
+            rec_loss_mod2 += tensors["reconst_loss_mod2_sum"]
             adversarial_loss += tensors["adversarial_loss_sum"]
             kl_div_l += tensors["kl_divergence_l_sum"]
             kl_div_z += tensors["kl_divergence_z_sum"]
@@ -259,7 +259,7 @@ class TrainingPlanLiam(pl.LightningModule):
         self.log("reconstruction_loss_train", rec_loss / n_obs)
         self.log("kl_local_train", kl_local / n_obs)
         self.log("kl_global_train", kl_global)
-        self.log("reconstruction_loss_peaks_train", rec_loss_peaks / n_obs)
+        self.log("reconstruction_loss_mod2_train", rec_loss_mod2 / n_obs)
         self.log("adversarial_loss_train", adversarial_loss / n_obs)
         self.log("kl_div_l_loss_train", kl_div_l / n_obs)
         self.log("kl_div_z_loss_train", kl_div_z / n_obs)
@@ -274,7 +274,7 @@ class TrainingPlanLiam(pl.LightningModule):
             "kl_local_sum": scvi_loss.kl_local.sum(),
             "kl_global": scvi_loss.kl_global,
             "n_obs": reconstruction_loss.shape[0],
-            "reconst_loss_peaks_sum": scvi_loss.reconst_loss_peaks.sum(),
+            "reconst_loss_mod2_sum": scvi_loss.reconst_loss_mod2.sum(),
             "adversarial_loss_sum": scvi_loss.adversarial_loss.sum(),
             "kl_divergence_l_sum": scvi_loss.kl_divergence_l.sum(),
             "kl_divergence_z_sum": scvi_loss.kl_divergence_z.sum(),
@@ -288,7 +288,7 @@ class TrainingPlanLiam(pl.LightningModule):
             elbo,
             rec_loss,
             kl_local,
-            rec_loss_peaks,
+            rec_loss_mod2,
             adversarial_loss,
             kl_div_l,
             kl_div_z,
@@ -299,7 +299,7 @@ class TrainingPlanLiam(pl.LightningModule):
             rec_loss += tensors["reconstruction_loss_sum"]
             kl_local += tensors["kl_local_sum"]
             n_obs += tensors["n_obs"]
-            rec_loss_peaks += tensors["reconst_loss_peaks_sum"]
+            rec_loss_mod2 += tensors["reconst_loss_mod2_sum"]
             adversarial_loss += tensors["adversarial_loss_sum"]
             kl_div_l += tensors["kl_divergence_l_sum"]
             kl_div_z += tensors["kl_divergence_z_sum"]
@@ -312,7 +312,7 @@ class TrainingPlanLiam(pl.LightningModule):
         self.log("reconstruction_loss_validation", rec_loss / n_obs)
         self.log("kl_local_validation", kl_local / n_obs)
         self.log("kl_global_validation", kl_global)
-        self.log("reconstruction_loss_peaks_validation", rec_loss_peaks / n_obs)
+        self.log("reconstruction_loss_mod2_validation", rec_loss_mod2 / n_obs)
         self.log("adversarial_loss_validation", adversarial_loss / n_obs)
         self.log("kl_div_l_loss_validation", kl_div_l / n_obs)
         self.log("kl_div_z_loss_validation", kl_div_z / n_obs)
