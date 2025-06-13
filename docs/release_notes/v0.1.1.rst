@@ -1,0 +1,4 @@
+New in 0.1.1 (2024-04-23)
+-------------------------
+- Introduces a downward compatible bug fix for single-modality models caused by introducing the mosaic integration functionality.
+- Set's manuscript defaults as defaults.
